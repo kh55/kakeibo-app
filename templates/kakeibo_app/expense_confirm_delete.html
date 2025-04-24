@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>支出の削除確認</h2>
+    <p>以下の支出を削除してもよろしいですか？</p>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ expense.date }} - {{ expense.category }} - {{ expense.amount }}円</h5>
+            <p class="card-text">
+                カード: {{ expense.card|default:"なし" }}<br>
+                メモ: {{ expense.memo|default:"なし" }}
+            </p>
+        </div>
+    </div>
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">削除</button>
+        <a href="{% url 'kakeibo_app:expense_list' %}" class="btn btn-secondary">キャンセル</a>
+    </form>
+</div>
+{% endblock %} 
