@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>家計簿</h2>
+    <div class="mb-3">
+        <a href="{% url 'kakeibo_app:expense_create' %}" class="btn btn-primary">支出追加</a>
+        <a href="{% url 'kakeibo_app:income_create' %}" class="btn btn-success">収入追加</a>
+        <a href="{% url 'kakeibo_app:recurring_expense_create' %}" class="btn btn-info">定期支出追加</a>
+    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">収入一覧</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>金額</th>
+                                <th>メモ</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for income in incomes %}
+                            <tr>
+                                <td>{{ income.date }}</td>
+                                <td>{{ income.amount }}円</td>
+                                <td>{{ income.memo }}</td>
+                                <td>
+                                    <a href="{% url 'kakeibo_app:income_edit' income.pk %}" class="btn btn-sm btn-outline-primary">編集</a>
+                                    <a href="{% url 'kakeibo_app:income_delete' income.pk %}" class="btn btn-sm btn-outline-danger">削除</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4">収入がありません</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">支出一覧</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>カテゴリ</th>
+                                <th>金額</th>
+                                <th>メモ</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expenses %}
+                            <tr>
+                                <td>{{ expense.date }}</td>
+                                <td>{{ expense.category.name }}</td>
+                                <td>{{ expense.amount }}円</td>
+                                <td>{{ expense.memo }}</td>
+                                <td>
+                                    <a href="{% url 'kakeibo_app:expense_edit' expense.pk %}" class="btn btn-sm btn-outline-primary">編集</a>
+                                    <a href="{% url 'kakeibo_app:expense_delete' expense.pk %}" class="btn btn-sm btn-outline-danger">削除</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5">支出がありません</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">カテゴリ一覧</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for category in categories %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ category.name }}
+                            <span class="badge bg-primary rounded-pill">{{ category.expense_set.count }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">カテゴリがありません</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">定期支出一覧</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for recurring_expense in recurring_expenses %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ recurring_expense.day }}日</strong> - {{ recurring_expense.amount }}円
+                                    <br>
+                                    <small class="text-muted">
+                                        カード: {{ recurring_expense.card }}<br>
+                                        期間: {{ recurring_expense.start_date }} 〜 {{ recurring_expense.end_date|default:"未設定" }}
+                                    </small>
+                                </div>
+                                <div>
+                                    <a href="{% url 'kakeibo_app:recurring_expense_edit' recurring_expense.pk %}" class="btn btn-sm btn-outline-primary">編集</a>
+                                    <a href="{% url 'kakeibo_app:recurring_expense_delete' recurring_expense.pk %}" class="btn btn-sm btn-outline-danger">削除</a>
+                                </div>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">定期支出がありません</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

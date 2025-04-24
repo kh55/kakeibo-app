@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ year }}年{{ month }}月の収支</h2>
+    
+    <!-- 前月・次月へのリンク -->
+    <div class="mb-4">
+        <a href="{% url 'kakeibo_app:monthly_summary' prev_year prev_month %}" class="btn btn-outline-primary">前月</a>
+        <a href="{% url 'kakeibo_app:monthly_summary' next_year next_month %}" class="btn btn-outline-primary">次月</a>
+    </div>
+
+    <!-- 収支サマリー -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">収入</h5>
+                    <p class="card-text h3 text-success">{{ monthly_incomes|default:"0"|floatformat:0 }}円</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">支出</h5>
+                    <p class="card-text h3 text-danger">{{ monthly_expenses|default:"0"|floatformat:0 }}円</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">収支</h5>
+                    <p class="card-text h3 {% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ balance|default:"0"|floatformat:0 }}円
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- カテゴリー別支出 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>カテゴリー別支出</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>カテゴリー</th>
+                            <th>金額</th>
+                            <th>割合</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in category_expenses %}
+                        <tr>
+                            <td>{{ category.category__name }}</td>
+                            <td>{{ category.total|floatformat:0 }}円</td>
+                            <td>{{ category.percentage|floatformat:1 }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- リンク -->
+    <div class="mb-4">
+        <a href="{% url 'kakeibo_app:expense_list' %}" class="btn btn-primary">支出一覧に戻る</a>
+    </div>
+</div>
+{% endblock %} 

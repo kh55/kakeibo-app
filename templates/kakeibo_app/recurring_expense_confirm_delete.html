@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>定期支出の削除確認</h2>
+    <p>以下の定期支出を削除してもよろしいですか？</p>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ recurring_expense.day }}日 - {{ recurring_expense.amount }}円</h5>
+            <p class="card-text">
+                カード: {{ recurring_expense.card }}<br>
+                開始日: {{ recurring_expense.start_date }}<br>
+                終了日: {{ recurring_expense.end_date|default:"未設定" }}<br>
+                メモ: {{ recurring_expense.memo|default:"なし" }}
+            </p>
+        </div>
+    </div>
+    <form method="post" class="mt-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">削除</button>
+        <a href="{% url 'kakeibo_app:expense_list' %}" class="btn btn-secondary">キャンセル</a>
+    </form>
+</div>
+{% endblock %} 
