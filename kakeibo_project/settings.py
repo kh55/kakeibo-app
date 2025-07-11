@@ -1,16 +1,29 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 環境変数を読み込み
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = []
+
+# ログイン設定
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/kakeibo/'
+LOGOUT_REDIRECT_URL = '/login/'
+
+# 環境変数からログイン情報を取得
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 # Application definition
 INSTALLED_APPS = [

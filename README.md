@@ -1,76 +1,120 @@
 # 家計簿アプリ
 
-Djangoで作成されたシンプルな家計簿管理アプリケーションです。支出と収入を管理し、月別の収支や推移を確認することができます。
+Djangoで作成された家計簿管理アプリケーションです。
 
 ## 機能
 
-### 基本機能
-- 支出の登録・編集・削除
-- 収入の登録・編集・削除
+- 支出の記録・編集・削除
+- 収入の記録・編集・削除
 - 定期支出の管理
-- カテゴリー管理
-
-### 分析機能
 - 月別収支サマリー
-  - 収入・支出・収支の表示
-  - カテゴリー別支出の内訳
-  - 前月・次月への移動
-- 月別収支の推移グラフ
-  - 過去12ヶ月分のデータ表示
-  - 収入・支出・収支の推移
-  - インタラクティブなグラフ表示
-
-## 技術スタック
-- Python 3.13
-- Django 5.2
-- Bootstrap 5.3
-- Chart.js
+- 収支推移グラフ
+- ログイン認証機能
 
 ## セットアップ
 
-1. リポジトリをクローン
+### 1. 環境変数の設定
+
+ログイン認証機能を使用するために、`.env`ファイルを作成して環境変数を設定してください：
+
 ```bash
-git clone git@github.com:kh55/kakeibo-app.git
-cd kakeibo-app
+# .env ファイルを作成
+cp env.example .env
 ```
 
-2. 仮想環境を作成して有効化
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# または
-venv\Scripts\activate  # Windows
+`.env`ファイルを編集して、以下の設定を行ってください：
+
+```env
+# 管理者ユーザーの設定
+ADMIN_USERNAME=your_username
+ADMIN_PASSWORD=your_secure_password
+
+# Django設定
+SECRET_KEY=your-secret-key-here
+DEBUG=True
 ```
 
-3. 依存パッケージをインストール
+**重要**: `.env`ファイルはGitにコミットされません。本番環境では必ず安全なパスワードを設定してください。
+
+### 2. 依存関係のインストール
+
 ```bash
 pip install -r requirements.txt
 ```
 
-4. データベースのマイグレーション
+### 3. データベースのマイグレーション
+
 ```bash
-cd kakeibo_project
 python manage.py migrate
 ```
 
-5. 開発サーバーを起動
+### 4. 管理者ユーザーの作成
+
+```bash
+python manage.py create_admin_user
+```
+
+### 5. 開発サーバーの起動
+
 ```bash
 python manage.py runserver
 ```
 
-6. ブラウザでアクセス
+## 使用方法
+
+1. ブラウザで `http://localhost:8000/login/` にアクセス
+2. 設定したユーザー名とパスワードでログイン
+3. 家計簿の管理を開始
+
+## デフォルト設定
+
+環境変数が設定されていない場合のデフォルト値：
+- ユーザー名: `admin`
+- パスワード: `admin123`
+- SECRET_KEY: `django-insecure-your-secret-key-here`
+- DEBUG: `True`
+
+**注意**: 本番環境では必ず`.env`ファイルで安全な設定を行ってください。
+
+## 環境変数の説明
+
+| 変数名 | 説明 | デフォルト値 |
+|--------|------|-------------|
+| `ADMIN_USERNAME` | 管理者ユーザー名 | `admin` |
+| `ADMIN_PASSWORD` | 管理者パスワード | `admin123` |
+| `SECRET_KEY` | Djangoの秘密鍵 | `django-insecure-your-secret-key-here` |
+| `DEBUG` | デバッグモード | `True` |
+
+## ファイル構成
+
 ```
-http://localhost:8000/kakeibo/
+kakeibo/
+├── kakeibo_app/          # メインアプリケーション
+│   ├── models.py         # データモデル
+│   ├── views.py          # ビュー
+│   ├── forms.py          # フォーム
+│   ├── urls.py           # URL設定
+│   └── management/       # 管理コマンド
+├── kakeibo_project/      # プロジェクト設定
+│   ├── settings.py       # 設定ファイル
+│   └── urls.py           # メインURL設定
+├── templates/            # テンプレート
+├── static/               # 静的ファイル
+├── .env                  # 環境変数（作成が必要）
+├── env.example           # 環境変数の例
+└── manage.py            # Django管理スクリプト
 ```
 
-## 今後の予定機能
-- グラフの機能拡張
-  - 期間選択機能
-  - グラフの種類切り替え
-  - データのエクスポート
-- 予算管理機能
-  - カテゴリーごとの予算設定
-  - 予算に対する進捗状況の表示
-- 年間収支の表示
-  - 月別収支の年間サマリー
-  - 年間のカテゴリー別支出分析 
+## トラブルシューティング
+
+### .envファイルが読み込まれない場合
+
+1. `.env`ファイルがプロジェクトのルートディレクトリにあることを確認
+2. ファイル名が正確に`.env`であることを確認（`.env.txt`などになっていないか）
+3. ファイルの内容が正しい形式であることを確認（`KEY=value`の形式）
+
+### ログインできない場合
+
+1. `python manage.py create_admin_user`を実行してユーザーを作成
+2. `.env`ファイルの`ADMIN_USERNAME`と`ADMIN_PASSWORD`が正しく設定されているか確認
+3. データベースが正しくマイグレーションされているか確認 
