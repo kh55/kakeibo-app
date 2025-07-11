@@ -3,10 +3,40 @@ from django.urls import reverse
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
 from datetime import datetime, date
 from .models import Expense, Category, RecurringExpense, Income
-from .forms import ExpenseForm, RecurringExpenseForm, IncomeForm
+from .forms import ExpenseForm, RecurringExpenseForm, IncomeForm, LoginForm
 
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('kakeibo_app:expense_list')
+    
+    if request.method == 'POST':
+        form = LoginForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, f'{username}さん、ようこそ！')
+                return redirect('kakeibo_app:expense_list')
+            else:
+                messages.error(request, 'ユーザー名またはパスワードが正しくありません。')
+    else:
+        form = LoginForm()
+    
+    return render(request, 'kakeibo_app/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    messages.info(request, 'ログアウトしました。')
+    return redirect('login')
+
+@login_required
 def expense_list(request):
     expenses = Expense.objects.all().order_by('-date')  # 日付の降順で表示
     categories = Category.objects.all()
@@ -19,6 +49,7 @@ def expense_list(request):
         'incomes': incomes
     })
 
+@login_required
 def monthly_summary(request, year=None, month=None):
     # 年と月が指定されていない場合は現在の年月を使用
     if year is None or month is None:
@@ -86,6 +117,7 @@ def monthly_summary(request, year=None, month=None):
         'next_month': next_month,
     })
 
+@login_required
 def expense_create(request):
     if request.method == 'POST':
         form = ExpenseForm(request.POST)
@@ -96,6 +128,7 @@ def expense_create(request):
         form = ExpenseForm()
     return render(request, 'kakeibo_app/expense_form.html', {'form': form})
 
+@login_required
 def expense_edit(request, pk):
     expense = get_object_or_404(Expense, pk=pk)
     if request.method == 'POST':
@@ -107,6 +140,7 @@ def expense_edit(request, pk):
         form = ExpenseForm(instance=expense)
     return render(request, 'kakeibo_app/expense_form.html', {'form': form})
 
+@login_required
 def expense_delete(request, pk):
     expense = get_object_or_404(Expense, pk=pk)
     if request.method == 'POST':
@@ -114,6 +148,7 @@ def expense_delete(request, pk):
         return redirect('kakeibo_app:expense_list')
     return render(request, 'kakeibo_app/expense_confirm_delete.html', {'expense': expense})
 
+@login_required
 def recurring_expense_create(request):
     if request.method == 'POST':
         form = RecurringExpenseForm(request.POST)
@@ -124,6 +159,7 @@ def recurring_expense_create(request):
         form = RecurringExpenseForm()
     return render(request, 'kakeibo_app/recurring_expense_form.html', {'form': form})
 
+@login_required
 def recurring_expense_edit(request, pk):
     recurring_expense = get_object_or_404(RecurringExpense, pk=pk)
     if request.method == 'POST':
@@ -135,6 +171,7 @@ def recurring_expense_edit(request, pk):
         form = RecurringExpenseForm(instance=recurring_expense)
     return render(request, 'kakeibo_app/recurring_expense_form.html', {'form': form})
 
+@login_required
 def recurring_expense_delete(request, pk):
     recurring_expense = get_object_or_404(RecurringExpense, pk=pk)
     if request.method == 'POST':
@@ -142,6 +179,7 @@ def recurring_expense_delete(request, pk):
         return redirect('kakeibo_app:expense_list')
     return render(request, 'kakeibo_app/recurring_expense_confirm_delete.html', {'recurring_expense': recurring_expense})
 
+@login_required
 def income_create(request):
     if request.method == 'POST':
         form = IncomeForm(request.POST)
@@ -152,6 +190,7 @@ def income_create(request):
         form = IncomeForm()
     return render(request, 'kakeibo_app/income_form.html', {'form': form})
 
+@login_required
 def income_edit(request, pk):
     income = get_object_or_404(Income, pk=pk)
     if request.method == 'POST':
@@ -163,6 +202,7 @@ def income_edit(request, pk):
         form = IncomeForm(instance=income)
     return render(request, 'kakeibo_app/income_form.html', {'form': form})
 
+@login_required
 def income_delete(request, pk):
     income = get_object_or_404(Income, pk=pk)
     if request.method == 'POST':
@@ -170,6 +210,7 @@ def income_delete(request, pk):
         return redirect('kakeibo_app:expense_list')
     return render(request, 'kakeibo_app/income_confirm_delete.html', {'income': income})
 
+@login_required
 def monthly_trend(request):
     # 過去12ヶ月分のデータを取得
     end_date = timezone.now().date()
