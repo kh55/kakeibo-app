@@ -28,7 +28,7 @@ jobs:
           echo "Python version:"
           python3 --version || echo "Python3 not found"
           echo "Pip version:"
-          pip3 --version || pip --version || echo "Pip not found"
+          python3 -m pip --version || echo "Pip not found"
           echo "Current directory:"
           pwd
           echo "Directory contents:"
@@ -49,5 +49,5 @@ jobs:
           echo "アクティベート後のPython:"
           python --version
           echo "アクティベート後のPip:"
-          pip --version
+          python -m pip --version
           echo "=====================" 
