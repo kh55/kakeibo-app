@@ -80,7 +80,11 @@ jobs:
         key: ${{ secrets.SAKURA_SSH_KEY || '' }}
         port: 22
         script: |
-          DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
+          if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
+            DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
+          else
+            DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
+          fi
           APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
           echo "Starting deployment on FreeBSD..."
           echo "Target path: $DEPLOY_PATH"
@@ -90,7 +94,9 @@ jobs:
           if [ -d "kakeibo_backup" ]; then rm -rf kakeibo_backup; fi
           if [ -d "kakeibo" ]; then mv kakeibo kakeibo_backup; fi
           echo "Extracting deployment package..."
+          ls -la deploy.tar.gz || echo "deploy.tar.gz not found"
           tar -xzf deploy.tar.gz || exit 1
+          ls -la || echo "Directory listing after tar extraction"
           if [ -d "kakeibo" ]; then
             mv kakeibo kakeibo_temp
             mv kakeibo_temp/* kakeibo/
