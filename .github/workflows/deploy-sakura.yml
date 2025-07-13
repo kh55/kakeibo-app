@@ -27,15 +27,29 @@ jobs:
           echo "=== 環境確認 ==="
           echo "Python version:"
           python3 --version || echo "Python3 not found"
+          echo "Python path:"
+          which python3
+          echo "Python modules:"
+          python3 -c "import sys; print('\\n'.join(sys.path))"
           echo "Pip version:"
           python3 -m pip --version || echo "Pip not found"
+          echo "Pkg available:"
+          pkg --version || echo "pkg not available"
           echo "Current directory:"
           pwd
           echo "Directory contents:"
           ls -la
           echo "=================="
           
-          # 段階2: 仮想環境の確認・作成
+          # 段階2: pipのインストール
+          echo "=== pipインストール ==="
+          echo "pkgでpipをインストール:"
+          pkg install -y py38-pip || echo "pkg install failed"
+          echo "pipの確認:"
+          pip3 --version || echo "pip3 not found"
+          echo "====================="
+          
+          # 段階3: 仮想環境の確認・作成
           echo "=== 仮想環境確認 ==="
           echo "仮想環境の存在確認..."
           ls -la | grep venv || echo "venvディレクトリが見つかりません"
