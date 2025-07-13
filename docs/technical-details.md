@@ -1,3 +1,10 @@
+# 技術詳細とトラブルシューティング
+
+## ワークフローファイルの詳細
+
+### 完全なワークフローファイル
+
+```yaml
 name: Deploy to Sakura Internet
 
 on:
@@ -134,23 +141,6 @@ jobs:
           curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8000/login/ || echo "curlでアクセスできません"
           echo "====================="
           
-          # 段階8.5: リバースプロキシ設定（さくらインターネット対応）
-          echo "=== リバースプロキシ設定 ==="
-          echo "さくらインターネットの制限に対応:"
-          echo "- 利用可能ポート: 80番、443番のみ"
-          echo "- 8000番ポートは内部でのみ使用"
-          echo ""
-          echo "🌐 アクセス方法:"
-          echo "1. さくらインターネットの管理画面でドメイン設定"
-          echo "2. サブドメインまたはドメインを追加"
-          echo "3. リバースプロキシ設定（必要に応じて）"
-          echo ""
-          echo "📝 設定例（さくらインターネットの管理画面で）:"
-          echo "- ドメイン: あなたのドメイン.sakura.ne.jp"
-          echo "- ポート: 80"
-          echo "- プロキシ先: localhost:8000"
-          echo "====================="
-          
           # 段階9: デプロイメント完了とアクセス方法
           echo "=== デプロイメント完了 ==="
           echo "🎉 さくらインターネットでのデプロイメントが完了しました！"
@@ -158,12 +148,12 @@ jobs:
           echo "📋 次のステップ:"
           echo "1. さくらインターネットの管理画面でドメイン設定"
           echo "2. サブドメインまたはドメインを追加"
-          echo "3. リバースプロキシ設定（80番ポート → localhost:8000）"
+          echo "3. ポート8000へのアクセス設定"
           echo ""
-          echo "🌐 アクセス方法（設定後）:"
-          echo "- ログインページ: http://あなたのドメイン/login/"
-          echo "- 管理画面: http://あなたのドメイン/admin/"
-          echo "- 家計簿アプリ: http://あなたのドメイン/kakeibo/"
+          echo "🌐 アクセス方法:"
+          echo "- ログインページ: http://あなたのドメイン:8000/login/"
+          echo "- 管理画面: http://あなたのドメイン:8000/admin/"
+          echo "- 家計簿アプリ: http://あなたのドメイン:8000/kakeibo/"
           echo ""
           echo "🔧 管理者アカウント:"
           echo "- ユーザー名: admin"
@@ -172,6 +162,162 @@ jobs:
           echo "⚠️  注意事項:"
           echo "- 本番環境ではSECRET_KEYを変更してください"
           echo "- パスワードを強力なものに変更してください"
-          echo "- さくらインターネットの管理画面でリバースプロキシ設定が必要です"
-          echo "- 8000番ポートは内部でのみ使用し、外部からは80番ポートでアクセス"
-          echo "=====================" 
+          echo "- ファイアウォールで8000番ポートを開放してください"
+          echo "====================="
+```
+
+## 主要な技術的ポイント
+
+### 1. SSH接続の設定
+
+#### GitHub Secretsの設定
+```bash
+SAKURA_HOST: サーバーのIPアドレスまたはホスト名
+SAKURA_USERNAME: SSHユーザー名
+SAKURA_PASSWORD: SSHパスワード
+SAKURA_DEPLOY_PATH: デプロイ先のディレクトリパス
+```
+
+#### 認証方式の選択
+- **パスワード認証**: 簡単だがセキュリティリスク
+- **SSH鍵認証**: 推奨（より安全）
+
+### 2. Python環境の構築
+
+#### pipのインストール方法
+```bash
+# Python 3.8専用のget-pip.pyを使用
+curl -s https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip.py
+python3 get-pip.py --user
+```
+
+#### 仮想環境の作成
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Django設定の最適化
+
+#### 本番環境用の設定
+```python
+DEBUG = False
+SECRET_KEY = "your-secure-secret-key"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "your-domain.sakura.ne.jp"]
+```
+
+#### 静的ファイルの設定
+```python
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+```
+
+### 4. Gunicornの設定
+
+#### 基本的な起動コマンド
+```bash
+python -m gunicorn kakeibo_project.wsgi:application --bind 0.0.0.0:8000 --workers 1
+```
+
+#### 本番環境用の設定
+```bash
+nohup python -m gunicorn kakeibo_project.wsgi:application \
+  --bind 0.0.0.0:8000 \
+  --workers 1 \
+  --daemon \
+  --access-logfile gunicorn.log \
+  --error-logfile gunicorn-error.log
+```
+
+## トラブルシューティング
+
+### よくある問題と解決方法
+
+#### 1. pipのインストールエラー
+**問題**: `No module named pip`
+**解決方法**: Python 3.8専用のget-pip.pyを使用
+
+#### 2. 権限エラー
+**問題**: `Permission denied`
+**解決方法**: `--user`オプションでユーザーディレクトリにインストール
+
+#### 3. ポート確認エラー
+**問題**: `sockstat`や`netstat`が使えない
+**解決方法**: `curl`でHTTPリクエストを送信して動作確認
+
+#### 4. 静的ファイルエラー
+**問題**: `STATICFILES_DIRS`のディレクトリが存在しない
+**解決方法**: 警告レベルなので無視可能、またはディレクトリを作成
+
+#### 5. 環境変数の読み込みエラー
+**問題**: `.env`ファイルが読み込まれない
+**解決方法**: ワークフロー内で直接環境変数を設定
+
+### デバッグ方法
+
+#### 1. ログの確認
+```bash
+# Gunicornのログを確認
+tail -f gunicorn.log
+tail -f gunicorn-error.log
+```
+
+#### 2. プロセスの確認
+```bash
+# Gunicornプロセスの確認
+ps aux | grep gunicorn
+```
+
+#### 3. ポートの確認
+```bash
+# 代替的なポート確認方法
+curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8000/
+```
+
+## セキュリティ考慮事項
+
+### 1. 環境変数の管理
+- 機密情報はGitHub Secretsで管理
+- 本番環境では強力なSECRET_KEYを使用
+
+### 2. ファイアウォール設定
+- 必要最小限のポートのみ開放
+- 特定のIPアドレスからのアクセス制限を検討
+
+### 3. アプリケーションのセキュリティ
+- DEBUGモードを無効化
+- 適切なALLOWED_HOSTS設定
+- HTTPSの使用を推奨
+
+## パフォーマンス最適化
+
+### 1. Gunicornの設定
+- ワーカー数の調整（CPUコア数 × 2 + 1）
+- タイムアウト設定の最適化
+
+### 2. 静的ファイルの配信
+- WhiteNoiseを使用した効率的な配信
+- 圧縮とキャッシュの活用
+
+### 3. データベースの最適化
+- インデックスの適切な設定
+- クエリの最適化
+
+## 監視とメンテナンス
+
+### 1. ログ監視
+- アクセスログとエラーログの定期確認
+- 異常なアクセスパターンの検出
+
+### 2. パフォーマンス監視
+- レスポンスタイムの監視
+- リソース使用量の確認
+
+### 3. セキュリティ監視
+- 不正アクセスの検出
+- 脆弱性の定期的な確認
+
+---
+
+*このドキュメントは実際の運用経験に基づいて作成されています。環境や要件に応じて適宜調整してください。* 
