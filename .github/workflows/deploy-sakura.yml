@@ -21,4 +21,13 @@ jobs:
         password: ${{ secrets.SAKURA_PASSWORD }}
         script: |
           cd ${{ secrets.SAKURA_DEPLOY_PATH }}
-          git pull origin main 
+          git pull origin main
+          
+          # 段階1: 環境確認
+          echo "=== 環境確認 ==="
+          echo "Python version: $(python3 --version)"
+          echo "Pip version: $(pip3 --version)"
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "==================" 
