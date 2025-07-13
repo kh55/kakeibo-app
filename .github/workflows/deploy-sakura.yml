@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.8'
     
     - name: Install dependencies
       run: |
@@ -80,30 +80,17 @@ jobs:
         key: ${{ secrets.SAKURA_SSH_KEY || '' }}
         port: 22
         script: |
-          # 環境変数を設定
-          export DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
-          export APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
-          
-          echo "Starting deployment..."
+          DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
+          APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
+          echo "Starting deployment on FreeBSD..."
           echo "Target path: $DEPLOY_PATH"
           echo "Application port: $APP_PORT"
-          
-          # デプロイディレクトリに移動
+          echo "Python version: $(/usr/local/bin/python3 --version)"
           cd "$DEPLOY_PATH" || exit 1
-          
-          # バックアップ
-          if [ -d "kakeibo_backup" ]; then
-            rm -rf kakeibo_backup
-          fi
-          if [ -d "kakeibo" ]; then
-            mv kakeibo kakeibo_backup
-          fi
-          
-          # ファイル展開
+          if [ -d "kakeibo_backup" ]; then rm -rf kakeibo_backup; fi
+          if [ -d "kakeibo" ]; then mv kakeibo kakeibo_backup; fi
           echo "Extracting deployment package..."
           tar -xzf deploy.tar.gz || exit 1
-          
-          # ディレクトリ構造を整理
           if [ -d "kakeibo" ]; then
             mv kakeibo kakeibo_temp
             mv kakeibo_temp/* kakeibo/
@@ -112,56 +99,48 @@ jobs:
             mkdir kakeibo || exit 1
             mv * kakeibo/ 2>/dev/null || true
           fi
-          
-          # 環境変数ファイル設定
           if [ ! -f "kakeibo/.env" ] && [ -f "kakeibo/env.example" ]; then
             cp kakeibo/env.example kakeibo/.env
             echo "Created .env file from template"
           fi
-          
-          # アプリケーションディレクトリに移動
           cd kakeibo || exit 1
-          
-          # 仮想環境作成
+          mkdir -p logs
           if [ ! -d "venv" ]; then
-            echo "Creating virtual environment..."
-            python3 -m venv venv || exit 1
+            echo "Creating virtual environment with Python 3.8.12..."
+            /usr/local/bin/python3 -m venv venv || exit 1
           fi
-          
           echo "Activating virtual environment..."
           source venv/bin/activate || exit 1
-          
+          echo "Python in venv: $(which python)"
+          echo "Pip in venv: $(which pip)"
           echo "Installing dependencies..."
           pip install --upgrade pip
           pip install -r requirements.txt || exit 1
-          
           echo "Running database migrations..."
           python manage.py migrate --noinput || exit 1
-          
           echo "Collecting static files..."
           python manage.py collectstatic --noinput || exit 1
-          
           echo "Restarting application..."
           if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
             kill $(cat "$DEPLOY_PATH/kakeibo.pid") || true
             rm "$DEPLOY_PATH/kakeibo.pid"
           fi
-          
-          # アプリケーションを起動
-          nohup "$DEPLOY_PATH/kakeibo/venv/bin/gunicorn" \
-            --bind "0.0.0.0:$APP_PORT" \
-            --workers 2 \
-            --pid "$DEPLOY_PATH/kakeibo.pid" \
-            kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
-          
-          # 起動確認
-          sleep 3
+          echo "Starting Gunicorn on FreeBSD..."
+          nohup "$DEPLOY_PATH/kakeibo/venv/bin/gunicorn" --bind "0.0.0.0:$APP_PORT" --workers 2 --pid "$DEPLOY_PATH/kakeibo.pid" kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
+          sleep 5
           if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
             echo "Application started successfully with PID: $(cat $DEPLOY_PATH/kakeibo.pid)"
+            echo "Process status:"
+            ps aux | grep gunicorn | grep -v grep || echo "Process not found in ps output"
+            echo "Port status:"
+            sockstat -l | grep ":$APP_PORT" || echo "Port $APP_PORT not found in sockstat"
           else
             echo "Error: Application failed to start"
             echo "Check logs: $DEPLOY_PATH/kakeibo.log"
+            if [ -f "$DEPLOY_PATH/kakeibo.log" ]; then
+              echo "Last 10 lines of log:"
+              tail -10 "$DEPLOY_PATH/kakeibo.log"
+            fi
             exit 1
           fi
-          
           echo "Deployment completed successfully!" 
