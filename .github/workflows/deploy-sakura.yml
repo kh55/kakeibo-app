@@ -88,4 +88,14 @@ jobs:
           python manage.py collectstatic --noinput || echo "静的ファイル収集に失敗"
           echo "Django設定の確認:"
           python manage.py check || echo "Django設定に問題があります"
+          echo "====================="
+          
+          # 段階6: アプリケーション起動
+          echo "=== アプリケーション起動 ==="
+          echo "現在のプロセス確認:"
+          ps aux | grep gunicorn || echo "Gunicornプロセスなし"
+          echo "Gunicornの起動テスト:"
+          timeout 10s python -m gunicorn kakeibo_project.wsgi:application --bind 0.0.0.0:8000 --workers 1 || echo "Gunicorn起動テスト完了"
+          echo "ポート8000の確認:"
+          sockstat -l | grep 8000 || echo "ポート8000でリッスンしていません"
           echo "=====================" 
