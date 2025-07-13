@@ -28,9 +28,29 @@ jobs:
           echo "Python version:"
           python3 --version || echo "Python3 not found"
           echo "Pip version:"
-          pip3 --version || echo "Pip3 not found"
+          pip3 --version || pip --version || echo "Pip not found"
           echo "Current directory:"
           pwd
           echo "Directory contents:"
           ls -la
-          echo "==================" 
+          echo "=================="
+          
+          # 段階2: 仮想環境の確認・作成
+          echo "=== 仮想環境確認 ==="
+          if [ -d "venv" ]; then
+            echo "仮想環境が存在します"
+            echo "仮想環境のPython:"
+            venv/bin/python --version || echo "仮想環境のPythonが見つかりません"
+          else
+            echo "仮想環境が存在しません。作成します..."
+            python3 -m venv venv
+            echo "仮想環境を作成しました"
+          fi
+          
+          echo "仮想環境をアクティベート..."
+          source venv/bin/activate
+          echo "アクティベート後のPython:"
+          python --version
+          echo "アクティベート後のPip:"
+          pip --version
+          echo "=====================" 
