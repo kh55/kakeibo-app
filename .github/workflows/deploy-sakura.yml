@@ -39,6 +39,17 @@ jobs:
         safety check --json --output safety-report.json || true
         echo "Security scan completed"
     
+    - name: Debug GitHub Secrets
+      run: |
+        echo "=== GitHub Secrets Debug Info ==="
+        echo "SAKURA_HOST: ${{ secrets.SAKURA_HOST && 'SET' || 'NOT SET' }}"
+        echo "SAKURA_USERNAME: ${{ secrets.SAKURA_USERNAME && 'SET' || 'NOT SET' }}"
+        echo "SAKURA_PASSWORD: ${{ secrets.SAKURA_PASSWORD && 'SET' || 'NOT SET' }}"
+        echo "SAKURA_SSH_KEY: ${{ secrets.SAKURA_SSH_KEY && 'SET' || 'NOT SET' }}"
+        echo "SAKURA_DEPLOY_PATH: ${{ secrets.SAKURA_DEPLOY_PATH && 'SET' || 'NOT SET' }}"
+        echo "SAKURA_PORT: ${{ secrets.SAKURA_PORT && 'SET' || 'NOT SET' }}"
+        echo "================================"
+    
     - name: Collect static files
       run: |
         python manage.py collectstatic --noinput
@@ -108,6 +119,21 @@ jobs:
           #!/bin/sh
           set -e
           
+          echo "=== SSH Script Debug Info ==="
+          echo "Checking GitHub Secrets expansion..."
+          
+          # Test basic variable expansion
+          TEST_HOST="${{ secrets.SAKURA_HOST }}"
+          TEST_USER="${{ secrets.SAKURA_USERNAME }}"
+          TEST_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
+          TEST_PORT="${{ secrets.SAKURA_PORT || '8000' }}"
+          
+          echo "TEST_HOST length: ${#TEST_HOST}"
+          echo "TEST_USER length: ${#TEST_USER}"
+          echo "TEST_PATH length: ${#TEST_PATH}"
+          echo "TEST_PORT: $TEST_PORT"
+          echo "=============================="
+          
           # Set deployment path
           if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
             DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
@@ -116,7 +142,7 @@ jobs:
           fi
           
           # Set app port
-          APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
+          APP_PORT="${{ secrets.SAKURA_PORT || '8000' }}"
           echo "🚀 Starting deployment on FreeBSD..."
           echo "📍 Target path: [REDACTED]"
           echo "🔌 Application port: [REDACTED]"
