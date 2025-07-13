@@ -46,6 +46,14 @@ jobs:
           --exclude='*.log' \
           .
     
+    - name: Set deploy path
+      run: |
+        if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
+          echo "DEPLOY_PATH=${{ secrets.SAKURA_DEPLOY_PATH }}" >> $GITHUB_ENV
+        else
+          echo "DEPLOY_PATH=/home/${{ secrets.SAKURA_USERNAME }}/" >> $GITHUB_ENV
+        fi
+
     - name: Deploy to Sakura Internet
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -54,7 +62,7 @@ jobs:
         password: ${{ secrets.SAKURA_PASSWORD }}
         port: ${{ secrets.SAKURA_PORT }}
         source: "deploy.tar.gz"
-        target: "${{ secrets.SAKURA_DEPLOY_PATH || '/home/' + secrets.SAKURA_USERNAME + '/' }}"
+        target: "${{ env.DEPLOY_PATH }}"
         strip_components: 0
     
     - name: Execute deployment commands
@@ -66,7 +74,11 @@ jobs:
         port: ${{ secrets.SAKURA_PORT }}
         script: |
           # デプロイパスを設定
-          DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || '/home/' + secrets.SAKURA_USERNAME + '/' }}"
+          if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
+            DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
+          else
+            DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
+          fi
           
           # デプロイディレクトリに移動
           cd $DEPLOY_PATH
