@@ -36,21 +36,22 @@ jobs:
         # 一時ディレクトリを作成
         mkdir -p temp_deploy
         
-        # 必要なファイルをコピー
-        cp -r kakeibo_app temp_deploy/
-        cp -r kakeibo_project temp_deploy/
-        cp -r templates temp_deploy/
-        cp -r static temp_deploy/
-        cp manage.py temp_deploy/
-        cp requirements.txt temp_deploy/
-        cp Procfile temp_deploy/
-        cp runtime.txt temp_deploy/
-        cp env.example temp_deploy/
-        cp sakura_settings.py temp_deploy/
-        cp env.sakura.example temp_deploy/
-        cp gunicorn_sakura.conf.py temp_deploy/
-        cp Procfile.sakura temp_deploy/
-        cp DEPLOY_SAKURA.md temp_deploy/
+        # 必要なファイルをコピー（エラーチェック付き）
+        for item in kakeibo_app kakeibo_project templates static; do
+          if [ -d "$item" ]; then
+            cp -r "$item" temp_deploy/
+          else
+            echo "Warning: Directory $item not found"
+          fi
+        done
+        
+        for item in manage.py requirements.txt Procfile runtime.txt env.example sakura_settings.py env.sakura.example gunicorn_sakura.conf.py Procfile.sakura DEPLOY_SAKURA.md; do
+          if [ -f "$item" ]; then
+            cp "$item" temp_deploy/
+          else
+            echo "Warning: File $item not found"
+          fi
+        done
         
         # デプロイパッケージを作成
         cd temp_deploy
@@ -59,14 +60,6 @@ jobs:
         
         # 一時ディレクトリを削除
         rm -rf temp_deploy
-    
-    - name: Set deploy path
-      run: |
-        if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
-          echo "DEPLOY_PATH=${{ secrets.SAKURA_DEPLOY_PATH }}" >> $GITHUB_ENV
-        else
-          echo "DEPLOY_PATH=/home/${{ secrets.SAKURA_USERNAME }}/" >> $GITHUB_ENV
-        fi
 
     - name: Deploy to Sakura Internet
       uses: appleboy/scp-action@v0.1.7
@@ -74,9 +67,9 @@ jobs:
         host: ${{ secrets.SAKURA_HOST }}
         username: ${{ secrets.SAKURA_USERNAME }}
         password: ${{ secrets.SAKURA_PASSWORD }}
-        port: ${{ secrets.SAKURA_PORT }}
+        port: ${{ secrets.SAKURA_SSH_PORT || '22' }}
         source: "deploy.tar.gz"
-        target: "${{ env.DEPLOY_PATH }}"
+        target: "${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
         strip_components: 0
     
     - name: Execute deployment commands
@@ -85,17 +78,19 @@ jobs:
         host: ${{ secrets.SAKURA_HOST }}
         username: ${{ secrets.SAKURA_USERNAME }}
         password: ${{ secrets.SAKURA_PASSWORD }}
-        port: ${{ secrets.SAKURA_PORT }}
+        port: ${{ secrets.SAKURA_SSH_PORT || '22' }}
         script: |
+          set -e  # エラー時に停止
+          
           # デプロイパスを設定
-          if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
-            DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
-          else
-            DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
-          fi
+          DEPLOY_PATH="${SAKURA_DEPLOY_PATH:-/home/${{ secrets.SAKURA_USERNAME }}/}"
+          APP_PORT="${SAKURA_APP_PORT:-8000}"
+          
+          echo "Deploying to: $DEPLOY_PATH"
+          echo "Application port: $APP_PORT"
           
           # デプロイディレクトリに移動
-          cd $DEPLOY_PATH
+          cd "$DEPLOY_PATH"
           
           # 既存のファイルをバックアップ
           if [ -d "kakeibo_backup" ]; then
@@ -114,35 +109,52 @@ jobs:
           # 環境変数ファイルを設定
           if [ ! -f "kakeibo/.env" ]; then
             cp kakeibo/env.example kakeibo/.env
+            echo "Created .env file from template"
           fi
           
           # 仮想環境を作成・更新
           cd kakeibo
           if [ ! -d "venv" ]; then
+            echo "Creating virtual environment..."
             python3 -m venv venv
           fi
+          
+          echo "Activating virtual environment..."
           source venv/bin/activate
+          
+          echo "Installing dependencies..."
           pip install --upgrade pip
           pip install -r requirements.txt
           
           # データベースマイグレーション
+          echo "Running database migrations..."
           python manage.py migrate --noinput
           
           # 静的ファイルを収集
+          echo "Collecting static files..."
           python manage.py collectstatic --noinput
           
           # アプリケーションを再起動
+          echo "Restarting application..."
           if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
-            kill $(cat $DEPLOY_PATH/kakeibo.pid) || true
-            rm $DEPLOY_PATH/kakeibo.pid
+            kill $(cat "$DEPLOY_PATH/kakeibo.pid") || true
+            rm "$DEPLOY_PATH/kakeibo.pid"
           fi
           
           # 新しいプロセスを開始
-          nohup $DEPLOY_PATH/kakeibo/venv/bin/gunicorn \
-            --bind 0.0.0.0:${{ secrets.SAKURA_PORT }} \
+          nohup "$DEPLOY_PATH/kakeibo/venv/bin/gunicorn" \
+            --bind "0.0.0.0:$APP_PORT" \
             --workers 2 \
-            --pid $DEPLOY_PATH/kakeibo.pid \
-            kakeibo_project.wsgi:application > $DEPLOY_PATH/kakeibo.log 2>&1 &
+            --pid "$DEPLOY_PATH/kakeibo.pid" \
+            kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
           
-          # デプロイ完了
+          # プロセスが起動したか確認
+          sleep 3
+          if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
+            echo "Application started successfully with PID: $(cat $DEPLOY_PATH/kakeibo.pid)"
+          else
+            echo "Warning: Application may not have started properly"
+            exit 1
+          fi
+          
           echo "Deployment completed successfully!" 
