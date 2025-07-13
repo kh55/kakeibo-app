@@ -33,20 +33,32 @@ jobs:
     
     - name: Create deployment package
       run: |
-        # 不要なファイルを除外してデプロイパッケージを作成
-        tar -czf deploy.tar.gz \
-          --exclude='.git' \
-          --exclude='venv' \
-          --exclude='__pycache__' \
-          --exclude='*.pyc' \
-          --exclude='.env' \
-          --exclude='db.sqlite3' \
-          --exclude='.github' \
-          --exclude='node_modules' \
-          --exclude='*.log' \
-          --exclude='deploy.tar.gz' \
-          --warning=no-file-changed \
-          .
+        # 一時ディレクトリを作成
+        mkdir -p temp_deploy
+        
+        # 必要なファイルをコピー
+        cp -r kakeibo_app temp_deploy/
+        cp -r kakeibo_project temp_deploy/
+        cp -r templates temp_deploy/
+        cp -r static temp_deploy/
+        cp manage.py temp_deploy/
+        cp requirements.txt temp_deploy/
+        cp Procfile temp_deploy/
+        cp runtime.txt temp_deploy/
+        cp env.example temp_deploy/
+        cp sakura_settings.py temp_deploy/
+        cp env.sakura.example temp_deploy/
+        cp gunicorn_sakura.conf.py temp_deploy/
+        cp Procfile.sakura temp_deploy/
+        cp DEPLOY_SAKURA.md temp_deploy/
+        
+        # デプロイパッケージを作成
+        cd temp_deploy
+        tar -czf ../deploy.tar.gz .
+        cd ..
+        
+        # 一時ディレクトリを削除
+        rm -rf temp_deploy
     
     - name: Set deploy path
       run: |
