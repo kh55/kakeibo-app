@@ -76,4 +76,16 @@ jobs:
           python -m pip install -r requirements.txt || echo "依存関係のインストールに失敗"
           echo "インストールされたパッケージ:"
           python -m pip list
+          echo "====================="
+          
+          # 段階5: Django設定とマイグレーション
+          echo "=== Django設定とマイグレーション ==="
+          echo "Djangoのバージョン確認:"
+          python -m django --version
+          echo "データベースマイグレーション:"
+          python manage.py migrate || echo "マイグレーションに失敗"
+          echo "静的ファイルの収集:"
+          python manage.py collectstatic --noinput || echo "静的ファイル収集に失敗"
+          echo "Django設定の確認:"
+          python manage.py check || echo "Django設定に問題があります"
           echo "=====================" 
