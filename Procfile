@@ -1,0 +1,1 @@
+web: gunicorn kakeibo_project.wsgi --log-file - 
