@@ -21,94 +21,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Run tests
-      run: |
-        python manage.py test
-    
-    - name: Security scan dependencies
-      run: |
-        pip install safety
-        safety check --json --output safety-report.json || true
-        echo "Security scan completed"
-    
-    - name: Debug GitHub Secrets
-      run: |
-        echo "=== GitHub Secrets Debug Info ==="
-        echo "SAKURA_HOST: ${{ secrets.SAKURA_HOST && 'SET' || 'NOT SET' }}"
-        echo "SAKURA_USERNAME: ${{ secrets.SAKURA_USERNAME && 'SET' || 'NOT SET' }}"
-        echo "SAKURA_PASSWORD: ${{ secrets.SAKURA_PASSWORD && 'SET' || 'NOT SET' }}"
-        echo "SAKURA_SSH_KEY: ${{ secrets.SAKURA_SSH_KEY && 'SET' || 'NOT SET' }}"
-        echo "SAKURA_DEPLOY_PATH: ${{ secrets.SAKURA_DEPLOY_PATH && 'SET' || 'NOT SET' }}"
-        echo "SAKURA_PORT: ${{ secrets.SAKURA_PORT && 'SET' || 'NOT SET' }}"
-        echo "================================"
-    
-    - name: Collect static files
-      run: |
-        python manage.py collectstatic --noinput
-    
-    - name: Create deployment package
-      run: |
-        # Create deployment package with only necessary files
-        echo "Creating optimized deployment package..."
-        
-        # Create temporary directory
-        mkdir -p temp_deploy
-        
-        # Copy essential directories
-        essential_dirs=("kakeibo_app" "kakeibo_project" "templates" "static")
-        for dir in "${essential_dirs[@]}"; do
-          if [ -d "$dir" ]; then
-            cp -r "$dir" temp_deploy/
-            echo "✓ Copied directory: $dir"
-          else
-            echo "⚠ Warning: Directory $dir not found"
-          fi
-        done
-        
-        # Copy essential files
-        essential_files=("manage.py" "requirements.txt" "env.example")
-        for file in "${essential_files[@]}"; do
-          if [ -f "$file" ]; then
-            cp "$file" temp_deploy/
-            echo "✓ Copied file: $file"
-          else
-            echo "⚠ Warning: File $file not found"
-          fi
-        done
-        
-        # Create package
-        cd temp_deploy
-        tar -czf ../deploy.tar.gz .
-        cd ..
-        
-        # Cleanup and verify
-        rm -rf temp_deploy
-        echo "✓ Deployment package created: deploy.tar.gz ($(du -h deploy.tar.gz | cut -f1))"
-
     - name: Deploy to Sakura Internet
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SAKURA_HOST }}
-        username: ${{ secrets.SAKURA_USERNAME }}
-        password: ${{ secrets.SAKURA_PASSWORD }}
-        key: ${{ secrets.SAKURA_SSH_KEY || '' }}
-        port: 22
-        source: "deploy.tar.gz"
-        target: "${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
-        strip_components: 0
-        debug: ${{ github.event_name == 'workflow_dispatch' }}
-    
-    - name: Execute deployment commands
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SAKURA_HOST }}
@@ -121,20 +34,7 @@ jobs:
           #!/bin/sh
           set -e
           
-          echo "=== SSH Script Debug Info ==="
-          echo "Checking GitHub Secrets expansion..."
-          
-          # Test basic variable expansion
-          TEST_HOST="${{ secrets.SAKURA_HOST }}"
-          TEST_USER="${{ secrets.SAKURA_USERNAME }}"
-          TEST_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
-          TEST_PORT="$SAKURA_PORT"
-          
-          echo "TEST_HOST: $TEST_HOST"
-          echo "TEST_USER: $TEST_USER"
-          echo "TEST_PATH: $TEST_PATH"
-          echo "TEST_PORT: $TEST_PORT"
-          echo "=============================="
+          echo "🚀 Starting simple deployment on FreeBSD..."
           
           # Set deployment path
           if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
@@ -143,12 +43,6 @@ jobs:
             DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
           fi
           
-          # Set app port
-          APP_PORT="$SAKURA_PORT"
-          echo "🚀 Starting deployment on FreeBSD..."
-          echo "📍 Target path: [REDACTED]"
-          echo "🔌 Application port: [REDACTED]"
-          echo "🐍 Python version: $(/usr/local/bin/python3 --version)"
           cd "$DEPLOY_PATH" || exit 1
           
           # Backup existing deployment
@@ -160,199 +54,67 @@ jobs:
             echo "💾 Backup created: kakeibo_backup"
           fi
           
-          echo "📦 Extracting deployment package..."
-          ls -la deploy.tar.gz || echo "❌ deploy.tar.gz not found"
-          tar -xzf deploy.tar.gz || exit 1
-          echo "✅ Package extracted successfully"
+          # Clone from Git
+          echo "📥 Cloning from Git repository..."
+          git clone https://github.com/${{ github.repository }}.git kakeibo || exit 1
+          cd kakeibo || exit 1
           
-          # Organize extracted files
-          if [ -d "kakeibo" ]; then
-            mv kakeibo kakeibo_temp
-            mv kakeibo_temp/* kakeibo/ 2>/dev/null || true
-            rmdir kakeibo_temp 2>/dev/null || true
-          else
-            mkdir kakeibo || exit 1
-            mv * kakeibo/ 2>/dev/null || true
-          fi
-          if [ ! -f "kakeibo/.env" ] && [ -f "kakeibo/env.example" ]; then
-            cp kakeibo/env.example kakeibo/.env
+          # Set up environment
+          if [ ! -f ".env" ] && [ -f "env.example" ]; then
+            cp env.example .env
             echo "📝 Created .env file from template"
           fi
           
-          # Configure environment variables
-          if [ -f "kakeibo/.env" ]; then
-            echo "Configuring environment variables..."
-            
-            # Set default values if not present
-            env_vars=(
-              "DEBUG=False"
-              "ALLOWED_HOSTS=localhost,127.0.0.1"
-            )
-            
-            for env_var in "${env_vars[@]}"; do
-              key="${env_var%%=*}"
-              if ! grep -q "^${key}=" kakeibo/.env; then
-                echo "$env_var" >> kakeibo/.env
-                echo "✓ Added: $key"
-              fi
-            done
-            
-            # Handle SECRET_KEY specially
-            if ! grep -q "^SECRET_KEY=" kakeibo/.env; then
-              echo "SECRET_KEY=$(openssl rand -hex 32)" >> kakeibo/.env
-              echo "✓ Generated new SECRET_KEY"
-            else
-              echo "✓ Using existing SECRET_KEY"
-            fi
-            
-            # Validate configuration
-            if grep -q "DEBUG=True" kakeibo/.env; then
-              echo "⚠ WARNING: DEBUG is set to True in production!"
-            fi
-            
-            echo "✓ Environment configuration completed"
-          else
-            echo "⚠ Warning: .env file not found"
-          fi
-          cd kakeibo || exit 1
-          mkdir -p logs
-          
-          # Set appropriate file permissions
-          chmod 600 .env 2>/dev/null || true
-          chmod 755 logs
-          chmod 644 *.py 2>/dev/null || true
-          
+          # Create virtual environment if not exists
           if [ ! -d "venv" ]; then
-            echo "🐍 Creating virtual environment with Python 3.8.12..."
+            echo "🐍 Creating virtual environment..."
             /usr/local/bin/python3 -m venv venv || exit 1
           fi
+          
+          # Activate virtual environment and install dependencies
           echo "🔧 Activating virtual environment..."
           source venv/bin/activate || exit 1
-          echo "🐍 Python in venv: $(which python)"
-          echo "📦 Pip in venv: $(which pip)"
           echo "📥 Installing dependencies..."
           pip install --upgrade pip
           pip install -r requirements.txt || exit 1
+          
+          # Run migrations and collect static files
           echo "🗄️ Running database migrations..."
           python manage.py migrate --noinput || exit 1
           echo "📁 Collecting static files..."
           python manage.py collectstatic --noinput || exit 1
+          
+          # Restart application
           echo "🔄 Restarting application..."
           
-          # Stop existing application safely
-          stop_application() {
-            local pid_file="$DEPLOY_PATH/kakeibo.pid"
-            if [ -f "$pid_file" ]; then
-              local pid=$(cat "$pid_file")
-              if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-                echo "Stopping existing process (PID: $pid)"
-                kill "$pid"
-                sleep 3
-                if kill -0 "$pid" 2>/dev/null; then
-                  echo "Force killing process (PID: $pid)"
-                  kill -9 "$pid"
-                fi
-              fi
-              rm "$pid_file" 2>/dev/null || true
+          # Stop existing process
+          if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
+            PID=$(cat "$DEPLOY_PATH/kakeibo.pid")
+            if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+              echo "Stopping existing process (PID: $PID)"
+              kill "$PID"
+              sleep 3
             fi
-            
-            # Clean up any orphaned processes
-            pkill -f "gunicorn.*kakeibo_project.wsgi" 2>/dev/null || true
-            sleep 2
-          }
+            rm "$DEPLOY_PATH/kakeibo.pid" 2>/dev/null || true
+          fi
           
-          stop_application
-          
-          echo "🚀 Starting Gunicorn on FreeBSD..."
-          nohup "$DEPLOY_PATH/kakeibo/venv/bin/gunicorn" --bind "127.0.0.1:$APP_PORT" --workers 2 --pid "$DEPLOY_PATH/kakeibo.pid" kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
+          # Start application
+          echo "🚀 Starting Gunicorn..."
+          nohup venv/bin/gunicorn --bind "127.0.0.1:$SAKURA_PORT" --workers 2 --pid "$DEPLOY_PATH/kakeibo.pid" kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
           
           sleep 5
           
+          # Check if application started successfully
           if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
             PID=$(cat "$DEPLOY_PATH/kakeibo.pid")
-            echo "✅ Application started successfully with PID: $PID"
-            
-            # Verify process is running
             if kill -0 "$PID" 2>/dev/null; then
-              echo "✅ Process verification: SUCCESS"
+              echo "✅ Application started successfully with PID: $PID"
+              echo "🎉 Deployment completed successfully!"
             else
-              echo "❌ Process verification: FAILED"
+              echo "❌ Application failed to start"
               exit 1
             fi
-            
-            echo "📊 Process status:"
-            ps aux | grep gunicorn | grep -v grep || echo "Process not found in ps output"
-            
-            echo "🔌 Port status:"
-            sockstat -l | grep ":$APP_PORT" || echo "Port $APP_PORT not found in sockstat"
-            
-            # Comprehensive health check
-            perform_health_check() {
-              local pid_file="$DEPLOY_PATH/kakeibo.pid"
-              local log_file="$DEPLOY_PATH/kakeibo.log"
-              
-              echo "Performing comprehensive health check..."
-              
-              # Check if PID file exists and process is running
-              if [ ! -f "$pid_file" ]; then
-                echo "❌ Health check failed: PID file not found"
-                return 1
-              fi
-              
-              local pid=$(cat "$pid_file")
-              if ! kill -0 "$pid" 2>/dev/null; then
-                echo "❌ Health check failed: Process not running (PID: $pid)"
-                return 1
-              fi
-              
-              # Check port binding
-              if ! sockstat -l | grep -q ":$APP_PORT"; then
-                echo "❌ Health check failed: Port $APP_PORT not bound"
-                return 1
-              fi
-              
-              # Check application response (if curl available)
-              if command -v curl >/dev/null 2>&1; then
-                local max_attempts=5
-                local attempt=1
-                
-                while [ $attempt -le $max_attempts ]; do
-                  if curl -f -s --connect-timeout 5 "http://127.0.0.1:$APP_PORT/" >/dev/null 2>&1; then
-                    echo "✓ Health check passed: Application responding"
-                    return 0
-                  fi
-                  echo "Attempt $attempt/$max_attempts: Application not responding, retrying..."
-                  sleep 2
-                  attempt=$((attempt + 1))
-                done
-                
-                echo "❌ Health check failed: Application not responding after $max_attempts attempts"
-                return 1
-              else
-                echo "⚠ Health check: curl not available, skipping HTTP check"
-                echo "✓ Health check passed: Process and port verified"
-                return 0
-              fi
-            }
-            
-            if perform_health_check; then
-              echo "✓ Application deployment successful"
-            else
-              echo "❌ Application deployment failed"
-              echo "Check logs: $DEPLOY_PATH/kakeibo.log"
-              if [ -f "$DEPLOY_PATH/kakeibo.log" ]; then
-                echo "Last 20 lines of log:"
-                tail -20 "$DEPLOY_PATH/kakeibo.log"
-              fi
-              exit 1
-            fi 
           else
-            echo "Error: Application failed to start"
-            echo "Check logs: $DEPLOY_PATH/kakeibo.log"
-            if [ -f "$DEPLOY_PATH/kakeibo.log" ]; then
-              echo "Last 20 lines of log:"
-              tail -20 "$DEPLOY_PATH/kakeibo.log"
-            fi
+            echo "❌ Application failed to start"
             exit 1
           fi 
-          echo "🎉 Deployment completed successfully!" 
