@@ -98,4 +98,20 @@ jobs:
           timeout 10s python -m gunicorn kakeibo_project.wsgi:application --bind 0.0.0.0:8000 --workers 1 || echo "Gunicorn起動テスト完了"
           echo "ポート8000の確認:"
           sockstat -l | grep 8000 || echo "ポート8000でリッスンしていません"
+          echo "====================="
+          
+          # 段階7: アプリケーション起動と動作確認
+          echo "=== アプリケーション起動と動作確認 ==="
+          echo "既存のGunicornプロセスを停止:"
+          pkill -f gunicorn || echo "停止するプロセスなし"
+          echo "Gunicornをバックグラウンドで起動:"
+          nohup python -m gunicorn kakeibo_project.wsgi:application --bind 0.0.0.0:8000 --workers 1 --daemon || echo "Gunicorn起動に失敗"
+          echo "3秒待機..."
+          sleep 3
+          echo "Gunicornプロセスの確認:"
+          ps aux | grep gunicorn
+          echo "ポート8000の確認:"
+          netstat -an | grep 8000 || echo "netstatでポート確認できません"
+          echo "動作確認（curl）:"
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:8000 || echo "curlでアクセスできません"
           echo "=====================" 
