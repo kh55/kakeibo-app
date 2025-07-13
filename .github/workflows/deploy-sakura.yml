@@ -37,15 +37,12 @@ jobs:
           
           # 段階2: 仮想環境の確認・作成
           echo "=== 仮想環境確認 ==="
-          if [ -d "venv" ]; then
-            echo "仮想環境が存在します"
-            echo "仮想環境のPython:"
-            venv/bin/python --version || echo "仮想環境のPythonが見つかりません"
-          else
-            echo "仮想環境が存在しません。作成します..."
-            python3 -m venv venv
-            echo "仮想環境を作成しました"
-          fi
+          echo "仮想環境の存在確認..."
+          ls -la | grep venv || echo "venvディレクトリが見つかりません"
+          
+          echo "仮想環境を作成します..."
+          python3 -m venv venv
+          echo "仮想環境を作成しました"
           
           echo "仮想環境をアクティベート..."
           source venv/bin/activate
