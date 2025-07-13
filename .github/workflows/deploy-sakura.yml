@@ -83,11 +83,17 @@ jobs:
         key: ${{ secrets.SAKURA_SSH_KEY || '' }}
         port: ${{ secrets.SAKURA_SSH_PORT || 22 }}
         script: |
-          set -e  # エラー時に停止
+          #!/bin/bash
+          set -e
           
           # デプロイパスを設定
-          DEPLOY_PATH="${SAKURA_DEPLOY_PATH:-/home/${{ secrets.SAKURA_USERNAME }}/}"
-          APP_PORT="${SAKURA_APP_PORT:-8000}"
+          if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
+            DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
+          else
+            DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
+          fi
+          
+          APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
           
           echo "Deploying to: $DEPLOY_PATH"
           echo "Application port: $APP_PORT"
@@ -105,12 +111,17 @@ jobs:
           
           # 新しいファイルを展開
           tar -xzf deploy.tar.gz
-          mv kakeibo kakeibo_temp
-          mv kakeibo_temp/* kakeibo/
-          rmdir kakeibo_temp
+          if [ -d "kakeibo" ]; then
+            mv kakeibo kakeibo_temp
+            mv kakeibo_temp/* kakeibo/
+            rmdir kakeibo_temp
+          else
+            mkdir kakeibo
+            mv * kakeibo/ 2>/dev/null || true
+          fi
           
           # 環境変数ファイルを設定
-          if [ ! -f "kakeibo/.env" ]; then
+          if [ ! -f "kakeibo/.env" ] && [ -f "kakeibo/env.example" ]; then
             cp kakeibo/env.example kakeibo/.env
             echo "Created .env file from template"
           fi
