@@ -5,56 +5,20 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Restrict workflow permissions
-permissions:
-  contents: read
-  actions: read
-  security-events: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout Repository
       uses: actions/checkout@v4
     
-    - name: Deploy to Sakura Internet
-      uses: appleboy/ssh-action@v1.0.3
+    - name: Deploy
+      uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.SAKURA_HOST }}
         username: ${{ secrets.SAKURA_USERNAME }}
         password: ${{ secrets.SAKURA_PASSWORD }}
-        key: ${{ secrets.SAKURA_SSH_KEY || '' }}
-        port: 22
-        script_stop: true
         script: |
-          #!/bin/sh
-          set -e
-          
-          echo "🚀 Starting simple Git pull deployment..."
-          
-          # Set deployment path
-          if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
-            DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
-          else
-            DEPLOY_PATH="/home/${{ secrets.SAKURA_USERNAME }}/"
-          fi
-          
-          cd "$DEPLOY_PATH" || exit 1
-          
-          # Backup existing deployment
-          if [ -d "kakeibo_backup" ]; then 
-            rm -rf kakeibo_backup
-          fi
-          if [ -d "kakeibo" ]; then 
-            mv kakeibo kakeibo_backup
-            echo "💾 Backup created: kakeibo_backup"
-          fi
-          
-          # Clone from Git
-          echo "📥 Cloning from Git repository..."
-          git clone https://github.com/${{ github.repository }}.git kakeibo || exit 1
-          
-          echo "✅ Git pull completed successfully!"
-          echo "🎉 Deployment completed!" 
+          cd ${{ secrets.SAKURA_DEPLOY_PATH }}
+          git pull origin main 
