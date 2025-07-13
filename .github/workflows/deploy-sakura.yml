@@ -66,4 +66,14 @@ jobs:
           python --version
           echo "アクティベート後のPip:"
           python -m pip --version
+          echo "====================="
+          
+          # 段階4: 依存関係のインストール
+          echo "=== 依存関係インストール ==="
+          echo "requirements.txtの内容確認:"
+          cat requirements.txt
+          echo "依存関係をインストール:"
+          python -m pip install -r requirements.txt || echo "依存関係のインストールに失敗"
+          echo "インストールされたパッケージ:"
+          python -m pip list
           echo "=====================" 
