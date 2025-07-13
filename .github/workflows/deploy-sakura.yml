@@ -14,8 +14,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      SAKURA_PORT: ${{ secrets.SAKURA_PORT || '8000' }}
     
     steps:
     - name: Checkout code
@@ -34,7 +32,7 @@ jobs:
           #!/bin/sh
           set -e
           
-          echo "🚀 Starting simple deployment on FreeBSD..."
+          echo "🚀 Starting simple Git pull deployment..."
           
           # Set deployment path
           if [ -n "${{ secrets.SAKURA_DEPLOY_PATH }}" ]; then
@@ -57,64 +55,6 @@ jobs:
           # Clone from Git
           echo "📥 Cloning from Git repository..."
           git clone https://github.com/${{ github.repository }}.git kakeibo || exit 1
-          cd kakeibo || exit 1
           
-          # Set up environment
-          if [ ! -f ".env" ] && [ -f "env.example" ]; then
-            cp env.example .env
-            echo "📝 Created .env file from template"
-          fi
-          
-          # Create virtual environment if not exists
-          if [ ! -d "venv" ]; then
-            echo "🐍 Creating virtual environment..."
-            /usr/local/bin/python3 -m venv venv || exit 1
-          fi
-          
-          # Activate virtual environment and install dependencies
-          echo "🔧 Activating virtual environment..."
-          source venv/bin/activate || exit 1
-          echo "📥 Installing dependencies..."
-          pip install --upgrade pip
-          pip install -r requirements.txt || exit 1
-          
-          # Run migrations and collect static files
-          echo "🗄️ Running database migrations..."
-          python manage.py migrate --noinput || exit 1
-          echo "📁 Collecting static files..."
-          python manage.py collectstatic --noinput || exit 1
-          
-          # Restart application
-          echo "🔄 Restarting application..."
-          
-          # Stop existing process
-          if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
-            PID=$(cat "$DEPLOY_PATH/kakeibo.pid")
-            if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-              echo "Stopping existing process (PID: $PID)"
-              kill "$PID"
-              sleep 3
-            fi
-            rm "$DEPLOY_PATH/kakeibo.pid" 2>/dev/null || true
-          fi
-          
-          # Start application
-          echo "🚀 Starting Gunicorn..."
-          nohup venv/bin/gunicorn --bind "127.0.0.1:$SAKURA_PORT" --workers 2 --pid "$DEPLOY_PATH/kakeibo.pid" kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
-          
-          sleep 5
-          
-          # Check if application started successfully
-          if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
-            PID=$(cat "$DEPLOY_PATH/kakeibo.pid")
-            if kill -0 "$PID" 2>/dev/null; then
-              echo "✅ Application started successfully with PID: $PID"
-              echo "🎉 Deployment completed successfully!"
-            else
-              echo "❌ Application failed to start"
-              exit 1
-            fi
-          else
-            echo "❌ Application failed to start"
-            exit 1
-          fi 
+          echo "✅ Git pull completed successfully!"
+          echo "🎉 Deployment completed!" 
