@@ -44,6 +44,8 @@ jobs:
           --exclude='.github' \
           --exclude='node_modules' \
           --exclude='*.log' \
+          --exclude='deploy.tar.gz' \
+          --warning=no-file-changed \
           .
     
     - name: Set deploy path
