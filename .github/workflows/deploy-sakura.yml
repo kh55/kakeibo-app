@@ -14,6 +14,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SAKURA_PORT: ${{ secrets.SAKURA_PORT || '8000' }}
     
     steps:
     - name: Checkout code
@@ -126,11 +128,11 @@ jobs:
           TEST_HOST="${{ secrets.SAKURA_HOST }}"
           TEST_USER="${{ secrets.SAKURA_USERNAME }}"
           TEST_PATH="${{ secrets.SAKURA_DEPLOY_PATH }}"
-          TEST_PORT="${{ secrets.SAKURA_PORT || '8000' }}"
+          TEST_PORT="$SAKURA_PORT"
           
-          echo "TEST_HOST length: ${#TEST_HOST}"
-          echo "TEST_USER length: ${#TEST_USER}"
-          echo "TEST_PATH length: ${#TEST_PATH}"
+          echo "TEST_HOST: $TEST_HOST"
+          echo "TEST_USER: $TEST_USER"
+          echo "TEST_PATH: $TEST_PATH"
           echo "TEST_PORT: $TEST_PORT"
           echo "=============================="
           
@@ -142,7 +144,7 @@ jobs:
           fi
           
           # Set app port
-          APP_PORT="${{ secrets.SAKURA_PORT || '8000' }}"
+          APP_PORT="$SAKURA_PORT"
           echo "🚀 Starting deployment on FreeBSD..."
           echo "📍 Target path: [REDACTED]"
           echo "🔌 Application port: [REDACTED]"
