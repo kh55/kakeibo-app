@@ -80,13 +80,16 @@ jobs:
         key: ${{ secrets.SAKURA_SSH_KEY || '' }}
         port: 22
         script: |
-          DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
-          APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
+          # 環境変数を設定
+          export DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
+          export APP_PORT="${{ secrets.SAKURA_APP_PORT || '8000' }}"
           
-          echo "Deploying to: $DEPLOY_PATH"
+          echo "Starting deployment..."
+          echo "Target path: $DEPLOY_PATH"
           echo "Application port: $APP_PORT"
           
-          cd "$DEPLOY_PATH"
+          # デプロイディレクトリに移動
+          cd "$DEPLOY_PATH" || exit 1
           
           # バックアップ
           if [ -d "kakeibo_backup" ]; then
@@ -97,13 +100,16 @@ jobs:
           fi
           
           # ファイル展開
-          tar -xzf deploy.tar.gz
+          echo "Extracting deployment package..."
+          tar -xzf deploy.tar.gz || exit 1
+          
+          # ディレクトリ構造を整理
           if [ -d "kakeibo" ]; then
             mv kakeibo kakeibo_temp
             mv kakeibo_temp/* kakeibo/
             rmdir kakeibo_temp
           else
-            mkdir kakeibo
+            mkdir kakeibo || exit 1
             mv * kakeibo/ 2>/dev/null || true
           fi
           
@@ -113,7 +119,8 @@ jobs:
             echo "Created .env file from template"
           fi
           
-          cd kakeibo
+          # アプリケーションディレクトリに移動
+          cd kakeibo || exit 1
           
           # 仮想環境作成
           if [ ! -d "venv" ]; then
@@ -122,7 +129,7 @@ jobs:
           fi
           
           echo "Activating virtual environment..."
-          source venv/bin/activate
+          source venv/bin/activate || exit 1
           
           echo "Installing dependencies..."
           pip install --upgrade pip
@@ -140,17 +147,20 @@ jobs:
             rm "$DEPLOY_PATH/kakeibo.pid"
           fi
           
+          # アプリケーションを起動
           nohup "$DEPLOY_PATH/kakeibo/venv/bin/gunicorn" \
             --bind "0.0.0.0:$APP_PORT" \
             --workers 2 \
             --pid "$DEPLOY_PATH/kakeibo.pid" \
             kakeibo_project.wsgi:application > "$DEPLOY_PATH/kakeibo.log" 2>&1 &
           
+          # 起動確認
           sleep 3
           if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
             echo "Application started successfully with PID: $(cat $DEPLOY_PATH/kakeibo.pid)"
           else
             echo "Error: Application failed to start"
+            echo "Check logs: $DEPLOY_PATH/kakeibo.log"
             exit 1
           fi
           
