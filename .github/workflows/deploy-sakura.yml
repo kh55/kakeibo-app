@@ -43,8 +43,8 @@ jobs:
           
           # 段階2: pipのインストール
           echo "=== pipインストール ==="
-          echo "get-pip.pyをダウンロード:"
-          curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py || echo "get-pip.py download failed"
+          echo "Python 3.8用のget-pip.pyをダウンロード:"
+          curl -s https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip.py || echo "get-pip.py download failed"
           echo "pipをインストール:"
           python3 get-pip.py --user || echo "pip install failed"
           echo "pipの確認:"
