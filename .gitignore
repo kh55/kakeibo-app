@@ -134,6 +134,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# さくらインターネット用ファイル
+sakura_settings.py
+gunicorn_sakura.conf.py
+Procfile.sakura
+env.sakura.example
+
 # IDE
 .vscode/
 .idea/

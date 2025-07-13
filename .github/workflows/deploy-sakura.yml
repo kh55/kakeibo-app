@@ -1,0 +1,122 @@
+name: Deploy to Sakura Internet
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        python manage.py test
+    
+    - name: Collect static files
+      run: |
+        python manage.py collectstatic --noinput
+    
+    - name: Create deployment package
+      run: |
+        # 不要なファイルを除外してデプロイパッケージを作成
+        tar -czf deploy.tar.gz \
+          --exclude='.git' \
+          --exclude='venv' \
+          --exclude='__pycache__' \
+          --exclude='*.pyc' \
+          --exclude='.env' \
+          --exclude='db.sqlite3' \
+          --exclude='.github' \
+          --exclude='node_modules' \
+          --exclude='*.log' \
+          .
+    
+    - name: Deploy to Sakura Internet
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SAKURA_HOST }}
+        username: ${{ secrets.SAKURA_USERNAME }}
+        password: ${{ secrets.SAKURA_PASSWORD }}
+        port: ${{ secrets.SAKURA_PORT }}
+        source: "deploy.tar.gz"
+        target: "${{ secrets.SAKURA_DEPLOY_PATH || '/home/' + secrets.SAKURA_USERNAME + '/' }}"
+        strip_components: 0
+    
+    - name: Execute deployment commands
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SAKURA_HOST }}
+        username: ${{ secrets.SAKURA_USERNAME }}
+        password: ${{ secrets.SAKURA_PASSWORD }}
+        port: ${{ secrets.SAKURA_PORT }}
+        script: |
+          # デプロイパスを設定
+          DEPLOY_PATH="${{ secrets.SAKURA_DEPLOY_PATH || '/home/' + secrets.SAKURA_USERNAME + '/' }}"
+          
+          # デプロイディレクトリに移動
+          cd $DEPLOY_PATH
+          
+          # 既存のファイルをバックアップ
+          if [ -d "kakeibo_backup" ]; then
+            rm -rf kakeibo_backup
+          fi
+          if [ -d "kakeibo" ]; then
+            mv kakeibo kakeibo_backup
+          fi
+          
+          # 新しいファイルを展開
+          tar -xzf deploy.tar.gz
+          mv kakeibo kakeibo_temp
+          mv kakeibo_temp/* kakeibo/
+          rmdir kakeibo_temp
+          
+          # 環境変数ファイルを設定
+          if [ ! -f "kakeibo/.env" ]; then
+            cp kakeibo/env.example kakeibo/.env
+          fi
+          
+          # 仮想環境を作成・更新
+          cd kakeibo
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # データベースマイグレーション
+          python manage.py migrate --noinput
+          
+          # 静的ファイルを収集
+          python manage.py collectstatic --noinput
+          
+          # アプリケーションを再起動
+          if [ -f "$DEPLOY_PATH/kakeibo.pid" ]; then
+            kill $(cat $DEPLOY_PATH/kakeibo.pid) || true
+            rm $DEPLOY_PATH/kakeibo.pid
+          fi
+          
+          # 新しいプロセスを開始
+          nohup $DEPLOY_PATH/kakeibo/venv/bin/gunicorn \
+            --bind 0.0.0.0:${{ secrets.SAKURA_PORT }} \
+            --workers 2 \
+            --pid $DEPLOY_PATH/kakeibo.pid \
+            kakeibo_project.wsgi:application > $DEPLOY_PATH/kakeibo.log 2>&1 &
+          
+          # デプロイ完了
+          echo "Deployment completed successfully!" 
