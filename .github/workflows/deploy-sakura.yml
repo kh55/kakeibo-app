@@ -67,10 +67,12 @@ jobs:
         host: ${{ secrets.SAKURA_HOST }}
         username: ${{ secrets.SAKURA_USERNAME }}
         password: ${{ secrets.SAKURA_PASSWORD }}
-        port: ${{ secrets.SAKURA_SSH_PORT || '22' }}
+        key: ${{ secrets.SAKURA_SSH_KEY || '' }}
+        port: ${{ secrets.SAKURA_SSH_PORT || 22 }}
         source: "deploy.tar.gz"
         target: "${{ secrets.SAKURA_DEPLOY_PATH || format('/home/{0}/', secrets.SAKURA_USERNAME) }}"
         strip_components: 0
+        debug: true
     
     - name: Execute deployment commands
       uses: appleboy/ssh-action@v1.0.3
@@ -78,7 +80,8 @@ jobs:
         host: ${{ secrets.SAKURA_HOST }}
         username: ${{ secrets.SAKURA_USERNAME }}
         password: ${{ secrets.SAKURA_PASSWORD }}
-        port: ${{ secrets.SAKURA_SSH_PORT || '22' }}
+        key: ${{ secrets.SAKURA_SSH_KEY || '' }}
+        port: ${{ secrets.SAKURA_SSH_PORT || 22 }}
         script: |
           set -e  # エラー時に停止
           
